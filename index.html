@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#101827">
+  <title>Jogo da Cobrinha</title>
+  <style>
+    /* ===== 1. Estilos gerais ===== */
+    :root {
+      color-scheme: dark;
+      --fundo: #101827;
+      --painel: #182438;
+      --painel-claro: #21314a;
+      --texto: #f3f7ff;
+      --texto-suave: #aab8cc;
+      --verde: #55e6a5;
+      --verde-escuro: #24b879;
+      --vermelho: #ff667d;
+      --borda: #31415b;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 24px 14px;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(ellipse at top, #1c2d47 0%, var(--fundo) 58%);
+      color: var(--texto);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button { font: inherit; }
+
+    .jogo {
+      width: min(100%, 540px);
+      padding: 22px;
+      background: rgba(24, 36, 56, 0.96);
+      border: 1px solid var(--borda);
+      border-radius: 24px;
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+    }
+
+    header { text-align: center; margin-bottom: 18px; }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.8rem, 6vw, 2.5rem);
+      letter-spacing: -1px;
+    }
+
+    h1 span { color: var(--verde); }
+
+    .subtitulo {
+      margin: 7px 0 0;
+      color: var(--texto-suave);
+      font-size: 0.94rem;
+    }
+
+    .placar {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .placar-item {
+      padding: 12px 14px;
+      border: 1px solid var(--borda);
+      border-radius: 14px;
+      background: var(--painel-claro);
+    }
+
+    .placar-item small {
+      display: block;
+      color: var(--texto-suave);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .placar-item strong {
+      display: block;
+      margin-top: 2px;
+      font-size: 1.6rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .tabuleiro-area {
+      position: relative;
+      overflow: hidden;
+      width: 100%;
+      aspect-ratio: 1;
+      border: 2px solid #3a4c66;
+      border-radius: 14px;
+      background: #0b1320;
+      touch-action: none;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .sobreposicao {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      text-align: center;
+      background: rgba(7, 13, 23, 0.76);
+      backdrop-filter: blur(4px);
+    }
+
+    .sobreposicao[hidden] { display: none; }
+
+    .mensagem {
+      max-width: 300px;
+    }
+
+    .mensagem h2 {
+      margin: 0 0 8px;
+      font-size: clamp(1.4rem, 5vw, 2rem);
+    }
+
+    .mensagem p {
+      margin: 0;
+      color: #d0daea;
+      line-height: 1.5;
+    }
+
+    .botoes {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .botoes button {
+      flex: 1;
+      min-height: 46px;
+      border: 1px solid transparent;
+      border-radius: 12px;
+      padding: 10px 14px;
+      cursor: pointer;
+      font-weight: 750;
+      transition: transform 120ms ease, filter 120ms ease;
+    }
+
+    .botoes button:hover { filter: brightness(1.08); }
+    .botoes button:active { transform: scale(0.98); }
+    button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+
+    .primario { background: var(--verde); color: #082016; }
+    .secundario { background: var(--painel-claro); color: var(--texto); border-color: var(--borda) !important; }
+
+    .instrucoes {
+      margin: 16px 0 0;
+      text-align: center;
+      color: var(--texto-suave);
+      font-size: 0.88rem;
+      line-height: 1.6;
+    }
+
+    .instrucoes kbd {
+      display: inline-block;
+      min-width: 25px;
+      margin: 0 2px;
+      padding: 2px 6px;
+      color: var(--texto);
+      background: #263650;
+      border: 1px solid #435671;
+      border-radius: 5px;
+      font-family: inherit;
+      font-size: 0.8rem;
+    }
+
+    /* ===== 2. Controles direcionais para celulares e tablets ===== */
+    .controles-moveis {
+      display: grid;
+      grid-template-columns: repeat(3, 58px);
+      grid-template-rows: repeat(2, 48px);
+      gap: 7px;
+      justify-content: center;
+      margin-top: 18px;
+      user-select: none;
+    }
+
+    .direcao {
+      border: 1px solid #3c506d;
+      border-radius: 12px;
+      background: #263650;
+      color: var(--texto);
+      font-size: 1.3rem;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .direcao:active { background: #365071; }
+    .direcao.cima { grid-column: 2; grid-row: 1; }
+    .direcao.esquerda { grid-column: 1; grid-row: 2; }
+    .direcao.baixo { grid-column: 2; grid-row: 2; }
+    .direcao.direita { grid-column: 3; grid-row: 2; }
+
+    .rodape {
+      margin-top: 16px;
+      text-align: center;
+      color: #8192aa;
+      font-size: 0.78rem;
+    }
+
+    @media (max-width: 420px) {
+      body { padding: 12px 8px; }
+      .jogo { padding: 15px; border-radius: 18px; }
+      .controles-moveis { grid-template-columns: repeat(3, 64px); }
+      .botoes button { padding: 9px 8px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="jogo">
+    <header>
+      <h1>Jogo da <span>Cobrinha</span></h1>
+      <p class="subtitulo">Coma, cresça e tente bater seu recorde!</p>
+    </header>
+
+    <section class="placar" aria-label="Placar">
+      <div class="placar-item">
+        <small>Pontuação</small>
+        <strong id="pontuacao">0</strong>
+      </div>
+      <div class="placar-item">
+        <small>Recorde</small>
+        <strong id="recorde">0</strong>
+      </div>
+    </section>
+
+    <section class="tabuleiro-area" aria-label="Área do jogo">
+      <canvas id="tabuleiro" width="400" height="400" aria-label="Tabuleiro do jogo da cobrinha"></canvas>
+      <div class="sobreposicao" id="sobreposicao">
+        <div class="mensagem" aria-live="polite">
+          <h2 id="titulo-mensagem">Pronto para jogar?</h2>
+          <p id="texto-mensagem">Use as setas ou WASD para controlar a cobrinha. Não bata nas paredes nem no próprio corpo!</p>
+        </div>
+      </div>
+    </section>
+
+    <div class="botoes">
+      <button class="primario" id="botao-iniciar">Começar</button>
+      <button class="secundario" id="botao-pausa" disabled>Pausar</button>
+      <button class="secundario" id="botao-reiniciar">Reiniciar</button>
+    </div>
+
+    <div class="controles-moveis" aria-label="Controles direcionais">
+      <button class="direcao cima" data-direcao="cima" aria-label="Mover para cima">▲</button>
+      <button class="direcao esquerda" data-direcao="esquerda" aria-label="Mover para a esquerda">◀</button>
+      <button class="direcao baixo" data-direcao="baixo" aria-label="Mover para baixo">▼</button>
+      <button class="direcao direita" data-direcao="direita" aria-label="Mover para a direita">▶</button>
+    </div>
+
+    <p class="instrucoes">
+      Teclado: <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> ou
+      <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd><br>
+      Pressione <kbd>Espaço</kbd> para pausar ou retomar.
+    </p>
+    <div class="rodape">Feito com HTML, CSS e JavaScript puro — sem instalações.</div>
+  </main>
+
+  <script>
+    "use strict";
+
+    // ===== 1. Referências aos elementos da página =====
+    const canvas = document.getElementById("tabuleiro");
+    const contexto = canvas.getContext("2d");
+    const elementoPontuacao = document.getElementById("pontuacao");
+    const elementoRecorde = document.getElementById("recorde");
+    const sobreposicao = document.getElementById("sobreposicao");
+    const tituloMensagem = document.getElementById("titulo-mensagem");
+    const textoMensagem = document.getElementById("texto-mensagem");
+    const botaoIniciar = document.getElementById("botao-iniciar");
+    const botaoPausa = document.getElementById("botao-pausa");
+    const botaoReiniciar = document.getElementById("botao-reiniciar");
+
+    // ===== 2. Configurações do tabuleiro e do jogo =====
+    const CELULAS = 20;                 // O tabuleiro tem 20 x 20 casas.
+    const TAMANHO_CASA = canvas.width / CELULAS;
+    const VELOCIDADE_INICIAL = 165;     // Intervalo entre movimentos, em milissegundos.
+    const VELOCIDADE_MINIMA = 72;       // Limite para o jogo não ficar rápido demais.
+    const REDUCAO_POR_PONTO = 4;
+
+    // Estados possíveis: "pronto", "jogando", "pausado", "fim" e "vitoria".
+    let estado = "pronto";
+    let cobrinha = [];
+    let comida = { x: 10, y: 10 };
+    let direcao = { x: 1, y: 0 };
+    let direcaoSeguinte = { x: 1, y: 0 };
+    let pontuacao = 0;
+    let recorde = carregarRecorde();
+    let intervalo = VELOCIDADE_INICIAL;
+    let temporizador = null;
+
+    elementoRecorde.textContent = recorde;
+
+    // ===== 3. Recorde: leitura e gravação segura no navegador =====
+    function carregarRecorde() {
+      try {
+        const valor = Number.parseInt(localStorage.getItem("recordeCobrinha") || "0", 10);
+        return Number.isFinite(valor) && valor >= 0 ? valor : 0;
+      } catch (erro) {
+        // O jogo continua funcionando mesmo se o navegador bloquear o localStorage.
+        return 0;
+      }
+    }
+
+    function salvarRecorde() {
+      try {
+        localStorage.setItem("recordeCobrinha", String(recorde));
+      } catch (erro) {
+        // Se não for possível salvar, o recorde ainda vale durante esta sessão.
+      }
+    }
+
+    // ===== 4. Preparar uma nova partida =====
+    function prepararPartida() {
+      pararTemporizador();
+      cobrinha = [
+        { x: 9, y: 10 },
+        { x: 8, y: 10 },
+        { x: 7, y: 10 }
+      ];
+      direcao = { x: 1, y: 0 };
+      direcaoSeguinte = { x: 1, y: 0 };
+      pontuacao = 0;
+      intervalo = VELOCIDADE_INICIAL;
+      elementoPontuacao.textContent = pontuacao;
+      gerarComida();
+      desenhar();
+    }
+
+    function iniciarPartida() {
+      if (estado === "jogando") return;
+      if (estado === "pronto" || estado === "fim" || estado === "vitoria") {
+        prepararPartida();
+      }
+      estado = "jogando";
+      esconderMensagem();
+      atualizarBotoes();
+      agendarMovimento();
+    }
+
+    function reiniciarPartida() {
+      prepararPartida();
+      iniciarPartida();
+    }
+
+    // ===== 5. Pausa e controle do temporizador =====
+    function alternarPausa() {
+      if (estado === "jogando") {
+        estado = "pausado";
+        pararTemporizador();
+        mostrarMensagem("Jogo pausado", "Respire um pouco. Quando quiser continuar, pressione Retomar ou Espaço.");
+      } else if (estado === "pausado") {
+        estado = "jogando";
+        esconderMensagem();
+        agendarMovimento();
+      } else if (estado === "pronto") {
+        iniciarPartida();
+        return;
+      }
+      atualizarBotoes();
+    }
+
+    function pararTemporizador() {
+      if (temporizador !== null) {
+        clearTimeout(temporizador);
+        temporizador = null;
+      }
+    }
+
+    function agendarMovimento() {
+      pararTemporizador();
+      if (estado === "jogando") {
+        temporizador = setTimeout(() => {
+          atualizarJogo();
+          if (estado === "jogando") agendarMovimento();
+        }, intervalo);
+      }
+    }
+
+    // ===== 6. Movimentação, crescimento e colisões =====
+    function atualizarJogo() {
+      direcao = { ...direcaoSeguinte };
+
+      const cabecaAtual = cobrinha[0];
+      const novaCabeca = {
+        x: cabecaAtual.x + direcao.x,
+        y: cabecaAtual.y + direcao.y
+      };
+
+      // A comida é verificada antes de decidir se a cauda vai sair da posição.
+      const comeu = novaCabeca.x === comida.x && novaCabeca.y === comida.y;
+
+      // Se não comer, a cauda se move nesta rodada; por isso ela não conta
+      // como colisão, exceto quando a cobrinha vai crescer.
+      const corpoParaVerificar = comeu ? cobrinha : cobrinha.slice(0, -1);
+
+      const bateuNaParede =
+        novaCabeca.x < 0 || novaCabeca.x >= CELULAS ||
+        novaCabeca.y < 0 || novaCabeca.y >= CELULAS;
+
+      const bateuNoCorpo = corpoParaVerificar.some(
+        parte => parte.x === novaCabeca.x && parte.y === novaCabeca.y
+      );
+
+      if (bateuNaParede || bateuNoCorpo) {
+        terminarPartida();
+        return;
+      }
+
+      cobrinha.unshift(novaCabeca);
+
+      if (comeu) {
+        pontuacao += 10;
+        elementoPontuacao.textContent = pontuacao;
+
+        if (pontuacao > recorde) {
+          recorde = pontuacao;
+          elementoRecorde.textContent = recorde;
+          salvarRecorde();
+        }
+
+        // A cada alimento, a cobrinha fica um pouco mais rápida.
+        intervalo = Math.max(
+          VELOCIDADE_MINIMA,
+          VELOCIDADE_INICIAL - (pontuacao / 10) * REDUCAO_POR_PONTO
+        );
+
+        // Se não houver casas livres, o jogador venceu.
+        if (!gerarComida()) {
+          estado = "vitoria";
+          pararTemporizador();
+          mostrarMensagem("Você venceu! 🏆", "Parabéns! Você ocupou todo o tabuleiro. Comece uma nova partida para jogar novamente.");
+          atualizarBotoes();
+          desenhar();
+          return;
+        }
+      } else {
+        cobrinha.pop();
+      }
+
+      desenhar();
+    }
+
+    function terminarPartida() {
+      estado = "fim";
+      pararTemporizador();
+      mostrarMensagem("Fim de jogo!", `Sua pontuação foi ${pontuacao}. Tente novamente e supere seu recorde!`);
+      atualizarBotoes();
+      desenhar();
+    }
+
+    // ===== 7. Gerar comida em uma casa livre =====
+    function gerarComida() {
+      const casasLivres = [];
+
+      // Listamos as casas que não estão ocupadas para evitar tentativas infinitas.
+      for (let y = 0; y < CELULAS; y++) {
+        for (let x = 0; x < CELULAS; x++) {
+          const ocupada = cobrinha.some(parte => parte.x === x && parte.y === y);
+          if (!ocupada) casasLivres.push({ x, y });
+        }
+      }
+
+      if (casasLivres.length === 0) return false;
+
+      const indiceAleatorio = Math.floor(Math.random() * casasLivres.length);
+      comida = casasLivres[indiceAleatorio];
+      return true;
+    }
+
+    // ===== 8. Desenhar o tabuleiro, a cobrinha e a comida =====
+    function desenhar() {
+      // Fundo do tabuleiro.
+      contexto.fillStyle = "#0b1320";
+      contexto.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Grade discreta para ajudar a perceber as casas.
+      contexto.strokeStyle = "rgba(129, 155, 190, 0.10)";
+      contexto.lineWidth = 1;
+      for (let i = 0; i <= CELULAS; i++) {
+        const posicao = i * TAMANHO_CASA;
+        contexto.beginPath();
+        contexto.moveTo(posicao, 0);
+        contexto.lineTo(posicao, canvas.height);
+        contexto.stroke();
+        contexto.beginPath();
+        contexto.moveTo(0, posicao);
+        contexto.lineTo(canvas.width, posicao);
+        contexto.stroke();
+      }
+
+      // Comida: círculo vermelho com pequeno brilho.
+      const centroX = comida.x * TAMANHO_CASA + TAMANHO_CASA / 2;
+      const centroY = comida.y * TAMANHO_CASA + TAMANHO_CASA / 2;
+      contexto.fillStyle = "#ff667d";
+      contexto.shadowColor = "rgba(255, 102, 125, 0.55)";
+      contexto.shadowBlur = 10;
+      contexto.beginPath();
+      contexto.arc(centroX, centroY, TAMANHO_CASA * 0.34, 0, Math.PI * 2);
+      contexto.fill();
+      contexto.shadowBlur = 0;
+
+      // Corpo com cantos arredondados; a cabeça tem um tom mais claro.
+      cobrinha.forEach((parte, indice) => {
+        const margem = 2;
+        const x = parte.x * TAMANHO_CASA + margem;
+        const y = parte.y * TAMANHO_CASA + margem;
+        const lado = TAMANHO_CASA - margem * 2;
+
+        contexto.fillStyle = indice === 0 ? "#8affc7" : "#35cf91";
+        contexto.beginPath();
+        contexto.roundRect(x, y, lado, lado, 5);
+        contexto.fill();
+
+        // Olhos na cabeça, voltados para a direção atual.
+        if (indice === 0) desenharOlhos(x, y, lado);
+      });
+    }
+
+    function desenharOlhos(x, y, lado) {
+      contexto.fillStyle = "#0b3022";
+      const tamanhoOlho = 2.4;
+      let olhos;
+
+      if (direcao.x === 1) {
+        olhos = [[x + lado * 0.68, y + lado * 0.30], [x + lado * 0.68, y + lado * 0.70]];
+      } else if (direcao.x === -1) {
+        olhos = [[x + lado * 0.32, y + lado * 0.30], [x + lado * 0.32, y + lado * 0.70]];
+      } else if (direcao.y === -1) {
+        olhos = [[x + lado * 0.30, y + lado * 0.32], [x + lado * 0.70, y + lado * 0.32]];
+      } else {
+        olhos = [[x + lado * 0.30, y + lado * 0.68], [x + lado * 0.70, y + lado * 0.68]];
+      }
+
+      olhos.forEach(([olhoX, olhoY]) => {
+        contexto.beginPath();
+        contexto.arc(olhoX, olhoY, tamanhoOlho, 0, Math.PI * 2);
+        contexto.fill();
+      });
+    }
+
+    // ===== 9. Mensagens e atualização dos botões =====
+    function mostrarMensagem(titulo, texto) {
+      tituloMensagem.textContent = titulo;
+      textoMensagem.textContent = texto;
+      sobreposicao.hidden = false;
+    }
+
+    function esconderMensagem() {
+      sobreposicao.hidden = true;
+    }
+
+    function atualizarBotoes() {
+      botaoIniciar.textContent =
+        estado === "jogando" ? "Em andamento" :
+        estado === "pausado" ? "Retomar" :
+        estado === "pronto" ? "Começar" : "Jogar novamente";
+
+      botaoIniciar.disabled = estado === "jogando";
+      botaoPausa.disabled = !["jogando", "pausado"].includes(estado);
+      botaoPausa.textContent = estado === "pausado" ? "Retomar" : "Pausar";
+    }
+
+    // ===== 10. Traduzir teclas em direções =====
+    function mudarDirecao(nome) {
+      const direcoes = {
+        cima: { x: 0, y: -1 },
+        baixo: { x: 0, y: 1 },
+        esquerda: { x: -1, y: 0 },
+        direita: { x: 1, y: 0 }
+      };
+
+      const novaDirecao = direcoes[nome];
+      if (!novaDirecao) return;
+
+      // Impede a inversão de 180 graus, que faria a cobrinha bater em si mesma.
+      if (novaDirecao.x === -direcao.x && novaDirecao.y === -direcao.y) return;
+
+      // Só uma mudança por passo impede combinações rápidas de direções inválidas.
+      if (novaDirecao.x === -direcaoSeguinte.x &&
+          novaDirecao.y === -direcaoSeguinte.y) return;
+
+      direcaoSeguinte = novaDirecao;
+
+      // Permite começar imediatamente com uma direção, inclusive nos controles móveis.
+      if (estado === "pronto") iniciarPartida();
+    }
+
+    document.addEventListener("keydown", (evento) => {
+      const tecla = evento.key.toLowerCase();
+      const mapaTeclas = {
+        arrowup: "cima", w: "cima",
+        arrowdown: "baixo", s: "baixo",
+        arrowleft: "esquerda", a: "esquerda",
+        arrowright: "direita", d: "direita"
+      };
+
+      if (mapaTeclas[tecla]) {
+        // Evita que as setas rolem a página durante o jogo.
+        evento.preventDefault();
+        mudarDirecao(mapaTeclas[tecla]);
+      } else if (tecla === " ") {
+        evento.preventDefault();
+        if (estado === "pronto") iniciarPartida();
+        else if (estado === "jogando" || estado === "pausado") alternarPausa();
+        else if (estado === "fim" || estado === "vitoria") reiniciarPartida();
+      }
+    });
+
+    // Botões de controle por toque ou clique.
+    document.querySelectorAll("[data-direcao]").forEach(botao => {
+      botao.addEventListener("click", () => mudarDirecao(botao.dataset.direcao));
+    });
+
+    // Botões principais.
+    botaoIniciar.addEventListener("click", () => {
+      if (estado === "pausado") alternarPausa();
+      else iniciarPartida();
+    });
+    botaoPausa.addEventListener("click", alternarPausa);
+    botaoReiniciar.addEventListener("click", reiniciarPartida);
+
+    // Pausa automaticamente quando a aba perde o foco, evitando jogo invisível.
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden && estado === "jogando") alternarPausa();
+    });
+
+    // ===== 11. Estado inicial =====
+    prepararPartida();
+    mostrarMensagem(
+      "Pronto para jogar?",
+      "Use as setas ou WASD para controlar a cobrinha. Não bata nas paredes nem no próprio corpo!"
+    );
+    atualizarBotoes();
+  </script>
+</body>
+</html>
